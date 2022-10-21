@@ -101,7 +101,10 @@ mlp_float_t const *mlp_forward(struct mlp *mlp){
 
 // Memcpys de single answer row into aligned address (batch size = 1 for the moment)
 void mlp_load_answer(struct mlp *mlp, mlp_float_t const answer[]){
+    struct mlp_layer *output_layer;
 
+    output_layer = &(mlp->layers[mlp->n_layers - 1]);
+    memcpy(mlp->answer, answer, sizeof(mlp_float_t)*(output_layer->n_outputs));
 }
 
 // The cached output is compared to the answer and propagates backwards the change in the right direction based on the influence of each neuron
