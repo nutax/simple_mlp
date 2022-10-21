@@ -5,6 +5,9 @@
 #include <stdlib.h> // aligned_alloc, rand, size_t
 
 
+#define MLP_CACHE_LINE 64
+
+
 struct mlp;
 struct mlp_layer;
 
