@@ -109,5 +109,5 @@ void mlp_load_answer(struct mlp *mlp, mlp_float_t const answer[]){
 
 // The cached output is compared to the answer and propagates backwards the change in the right direction based on the influence of each neuron
 void mlp_backprog(struct mlp *mlp){
-
+    
 }
