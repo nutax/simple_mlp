@@ -3,7 +3,8 @@
 
 // Allocates memory, initializes it and set pointers
 void mlp_init(struct mlp *mlp, size_t const n_neurons_per_layer[], size_t n_layers){
-    size_t i_layer, j_weight, n_outputs, n_inputs, n_weights;
+    size_t i_layer, j_neuron, k_weight, n_outputs, n_inputs, wvec_size, ovec_size, wmat_size;
+    mlp_float_t *weights;
     struct mlp_layer *layer;
 
     assert(mlp != NULL);
@@ -27,22 +28,31 @@ void mlp_init(struct mlp *mlp, size_t const n_neurons_per_layer[], size_t n_laye
     for(i_layer = 1; i_layer<n_layers; ++i_layer){
         n_inputs = n_neurons_per_layer[i_layer-1];
         n_outputs = n_neurons_per_layer[i_layer];
-        n_weights = MLP_VALID_VEC_SZ(n_inputs + 1)*n_outputs;
+        ovec_size = MLP_VALID_VEC_SZ(n_outputs);
+        wvec_size = MLP_VALID_VEC_SZ(n_inputs + 1);
+        wmat_size =  wvec_size*n_outputs;
         layer = &(mlp->layers[i_layer]);
 
         layer->n_outputs = n_outputs;
 
-        layer->weights = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*(n_weights));
+        layer->weights = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)* wmat_size);
         assert(layer->outputs != NULL);
 
-        layer->outputs = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*MLP_VALID_VEC_SZ(n_outputs));
+        layer->outputs = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*ovec_size);
         assert(layer->outputs != NULL);
 
-        layer->deltas = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*MLP_VALID_VEC_SZ(n_outputs));
+        layer->deltas = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*ovec_size);
         assert(layer->deltas != NULL);
 
-        for(j_weight = 0; j_weight < n_weights; ++j_weight){
-            layer->weights[j_weight] = ((mlp_float_t)rand())/((mlp_float_t)RAND_MAX);
+        for(k_weight = 0; k_weight < wmat_size; k_weight){
+            layer->weights[k_weight] = 0;
+        }
+
+        for(j_neuron = 0; j_neuron < n_outputs; ++j_neuron){
+            weights = (layer->weights) + j_neuron*wvec_size;
+            for(k_weight = 0; k_weight < (n_inputs+1); k_weight){
+                layer->weights[k_weight] = ((mlp_float_t)rand())/((mlp_float_t)RAND_MAX);
+            }
         }
     }
 }
@@ -57,10 +67,10 @@ void mlp_load_input(struct mlp *mlp, mlp_float_t const input[]){
 
 // The input goes into the first hidden layer and that output is the input of the next and so on. Return the pointer to the last layer output
 mlp_float_t const *mlp_forward(struct mlp *mlp){
-    size_t i_layer, j_neuron, k_wvec, n_outputs, n_inputs, n_wvecs, n_layers, neuron_weights_padding;
-    __m256 *inputs, *weights;
-    mlp_float_t *outputs;
+    size_t i_layer, j_neuron, k_wvec, n_outputs, n_inputs, n_wvecs, wvec_size, n_layers;
     struct mlp_layer *prev_layer, *layer;
+    __m256 *inputs, *weights, sum;
+    mlp_float_t *outputs;
 
     n_layers = mlp->n_layers;
 
@@ -70,15 +80,19 @@ mlp_float_t const *mlp_forward(struct mlp *mlp){
 
         n_inputs = prev_layer->n_outputs;
         n_outputs = layer->n_outputs;
-        n_wvecs = MLP_VECS(n_inputs+1);
+        wvec_size = MLP_VALID_VEC_SZ(n_inputs + 1);
+        n_wvecs = wvec_size/VEC_FLOATS;
 
         inputs = (__m256 *)(prev_layer->outputs);
+        outputs = layer->outputs;
 
         for(j_neuron = 0; j_neuron < n_outputs; ++j_neuron){
-            weights = (__m256 *)(layer->weights + )
+            weights = (__m256 *)((layer->weights) + j_neuron*wvec_size);
+            sum = _mm256_set1_ps(0);
             for(k_wvec = 0; k_wvec<n_wvecs; ++k_wvec){
-                
+                sum = _mm256_fmadd_ps(inputs[k_wvec], weights[k_wvec], sum);
             }
+            outputs[j_neuron] = sum[0] + sum[1] + sum[2] + sum[3] + sum[4] + sum[5] + sum[6] + sum[7];
         }
     }
 
