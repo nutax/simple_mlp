@@ -56,16 +56,17 @@ void mlp_init(struct mlp *mlp, size_t const n_neurons_per_layer[], size_t n_laye
 
 // Memcpys de single input row into aligned address (batch size = 1 for the moment)
 void mlp_load_input(struct mlp *mlp, mlp_float_t const input[]){
-    size_t n_outputs;
-    struct mlp_layer *layer;
-
-    
-
+    struct mlp_layer * const input_layer = &(mlp->layers[0]);
+    memcpy(input_layer->outputs, input, sizeof(mlp_float_t)*(input_layer->n_outputs));
 }
 
 // The input goes into the first hidden layer and that output is the input of the next and so on. Return the pointer to the last layer output
 mlp_float_t const *mlp_forward(struct mlp *mlp){
+    size_t i_layer, j_weight, n_outputs, n_inputs, n_weights;
+    mlp_float_t *input, *output;
+    struct mlp_layer *layer;
 
+    return input;
 }
 
 // Memcpys de single answer row into aligned address (batch size = 1 for the moment)
