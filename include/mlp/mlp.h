@@ -6,10 +6,13 @@
 #include <assert.h> // assert
 #include <string.h> // memcpy
 
-
-#define MLP_CACHE_LINE 64
 typedef float mlp_float_t;
 
+#define VEC_BYTES 32
+#define VEC_FLOATS (VEC_BYTES/sizeof(mlp_float_t))
+#define MLP_CACHE_LINE 64
+#define MLP_VALID_VEC_SZ(x) ((x) + ((x)%VEC_FLOATS))
+#define MLP_VECS(x) ((x)/VEC_FLOATS + (size_t)(((x)%VEC_FLOATS > 0) & 1))
 
 struct mlp;
 struct mlp_layer;
