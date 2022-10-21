@@ -20,7 +20,7 @@ void mlp_init(struct mlp *mlp, size_t const n_neurons_per_layer[], size_t n_laye
     n_outputs = n_neurons_per_layer[i_layer];
     layer = &(mlp->layers[i_layer]);
     layer->n_outputs = n_outputs;
-    layer->outputs = aligned_alloc(MLP_CACHE_LINE, sizeof(struct mlp_layer)*(n_outputs));
+    layer->outputs = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*(n_outputs));
     assert(layer->outputs != NULL);
 
 
@@ -32,13 +32,13 @@ void mlp_init(struct mlp *mlp, size_t const n_neurons_per_layer[], size_t n_laye
 
         layer->n_outputs = n_outputs;
 
-        layer->weights = aligned_alloc(MLP_CACHE_LINE, sizeof(struct mlp_layer)*(n_weights));
+        layer->weights = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*(n_weights));
         assert(layer->outputs != NULL);
 
-        layer->outputs = aligned_alloc(MLP_CACHE_LINE, sizeof(struct mlp_layer)*(n_outputs));
+        layer->outputs = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*(n_outputs));
         assert(layer->outputs != NULL);
 
-        layer->deltas = aligned_alloc(MLP_CACHE_LINE, sizeof(struct mlp_layer)*(n_outputs));
+        layer->deltas = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*(n_outputs));
         assert(layer->deltas != NULL);
     }
 
@@ -56,6 +56,10 @@ void mlp_init(struct mlp *mlp, size_t const n_neurons_per_layer[], size_t n_laye
 
 // Memcpys de single input row into aligned address (batch size = 1 for the moment)
 void mlp_load_input(struct mlp *mlp, mlp_float_t const input[]){
+    size_t n_outputs;
+    struct mlp_layer *layer;
+
+    
 
 }
 
