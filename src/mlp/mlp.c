@@ -21,14 +21,18 @@ void mlp_init(struct mlp *mlp, size_t const n_neurons_per_layer[], size_t n_laye
     n_outputs = n_neurons_per_layer[i_layer];
     layer = &(mlp->layers[i_layer]);
     layer->n_outputs = n_outputs;
-    layer->outputs = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*MLP_VALID_VEC_SZ(n_outputs));
+    ovec_size = MLP_VALID_VEC_SZ(n_outputs + 1);
+    layer->outputs = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*ovec_size);
     assert(layer->outputs != NULL);
+    for(j_neuron = 0; j_neuron < ovec_size; ++j_neuron){
+        layer->outputs[j_neuron] = 0;
+    }
 
 
     for(i_layer = 1; i_layer<n_layers; ++i_layer){
         n_inputs = n_neurons_per_layer[i_layer-1];
         n_outputs = n_neurons_per_layer[i_layer];
-        ovec_size = MLP_VALID_VEC_SZ(n_outputs);
+        ovec_size = MLP_VALID_VEC_SZ(n_outputs + 1);
         wvec_size = MLP_VALID_VEC_SZ(n_inputs + 1);
         wmat_size =  wvec_size*n_outputs;
         layer = &(mlp->layers[i_layer]);
@@ -36,23 +40,28 @@ void mlp_init(struct mlp *mlp, size_t const n_neurons_per_layer[], size_t n_laye
         layer->n_outputs = n_outputs;
 
         layer->weights = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)* wmat_size);
-        assert(layer->outputs != NULL);
-
-        layer->outputs = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*ovec_size);
-        assert(layer->outputs != NULL);
-
-        layer->deltas = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*ovec_size);
-        assert(layer->deltas != NULL);
-
+        assert(layer->weights != NULL);
         for(k_weight = 0; k_weight < wmat_size; k_weight){
             layer->weights[k_weight] = 0;
         }
-
         for(j_neuron = 0; j_neuron < n_outputs; ++j_neuron){
             weights = (layer->weights) + j_neuron*wvec_size;
             for(k_weight = 0; k_weight < (n_inputs+1); k_weight){
                 layer->weights[k_weight] = ((mlp_float_t)rand())/((mlp_float_t)RAND_MAX);
             }
+        }
+
+        layer->outputs = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*ovec_size);
+        assert(layer->outputs != NULL);
+        for(j_neuron = 0; j_neuron < ovec_size; ++j_neuron){
+            layer->outputs[j_neuron] = 0;
+        }
+        layer->outputs[n_outputs] = 1;
+
+        layer->deltas = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t)*ovec_size);
+        assert(layer->deltas != NULL);
+        for(j_neuron = 0; j_neuron < ovec_size; ++j_neuron){
+            layer->deltas[j_neuron] = 0;
         }
     }
 }
@@ -71,6 +80,7 @@ mlp_float_t const *mlp_forward(struct mlp *mlp){
     struct mlp_layer *prev_layer, *layer;
     __m256 *inputs, *weights, sum;
     mlp_float_t *outputs;
+    float net_energy;
 
     n_layers = mlp->n_layers;
 
@@ -92,7 +102,8 @@ mlp_float_t const *mlp_forward(struct mlp *mlp){
             for(k_wvec = 0; k_wvec<n_wvecs; ++k_wvec){
                 sum = _mm256_fmadd_ps(inputs[k_wvec], weights[k_wvec], sum);
             }
-            outputs[j_neuron] = sum[0] + sum[1] + sum[2] + sum[3] + sum[4] + sum[5] + sum[6] + sum[7];
+            net_energy = sum[0] + sum[1] + sum[2] + sum[3] + sum[4] + sum[5] + sum[6] + sum[7];
+            outputs[j_neuron] = (mlp_float_t)(1/(1+exp(-net_energy))); //sigmoid activation function
         }
     }
 
@@ -104,10 +115,52 @@ void mlp_load_answer(struct mlp *mlp, mlp_float_t const answer[]){
     struct mlp_layer *output_layer;
 
     output_layer = &(mlp->layers[mlp->n_layers - 1]);
-    memcpy(mlp->answer, answer, sizeof(mlp_float_t)*(output_layer->n_outputs));
+    memcpy(mlp->answers, answer, sizeof(mlp_float_t)*(output_layer->n_outputs));
 }
 
 // The cached output is compared to the answer and propagates backwards the change in the right direction based on the influence of each neuron
-void mlp_backprog(struct mlp *mlp){
+void mlp_backprog(struct mlp *mlp, mlp_float_t rate){
+    size_t i_layer, j_neuron, k_vec, n_outputs, n_inputs, wvec_size, n_wvecs, n_layers, ovec_size, n_ovecs;
+    struct mlp_layer *prev_layer, *layer;
+    __m256 *inputs, *weights, *outputs, *answers, *deltas, aux1, aux2, ones;
+
+    ones = _mm256_set1_ps(1);
+
+    n_layers = mlp->n_layers;
+    i_layer = n_layers - 1;
     
+    layer = &(mlp->layers[i_layer]);
+    prev_layer = &(mlp->layers[i_layer - 1]);
+
+    n_inputs = prev_layer->n_outputs;
+    n_outputs = layer->n_outputs;
+
+    wvec_size = MLP_VALID_VEC_SZ(n_inputs + 1);
+    ovec_size = MLP_VALID_VEC_SZ(n_outputs);
+
+    n_wvecs = wvec_size/VEC_FLOATS;
+    n_ovecs = ovec_size/VEC_FLOATS;
+
+    inputs = (__m256 *) prev_layer->outputs;
+    outputs = (__m256 *) layer->outputs;
+    answers = (__m256 *) mlp->answers;
+    deltas = (__m256 *) layer->deltas;
+
+    for(k_vec = 0; k_vec < n_ovecs; ++k_vec){
+        // derivative sigmoid activation function
+        aux1 = _mm256_sub_ps(ones, outputs[k_vec]);
+        aux1 = _mm256_mul_ps(aux1, outputs[k_vec]);
+
+        // delta
+        deltas[k_vec] = _mm256_sub_ps(answers[k_vec], outputs[k_vec]);
+        deltas[k_vec] = _mm256_mul_ps(deltas[k_vec], aux1);
+    }
+
+    for(j_neuron = 0; j_neuron < n_outputs; ++j_neuron){
+        weights = (__m256 *)((layer->weights) + j_neuron*wvec_size);
+        aux1 = _mm256_set1_ps(layer->deltas[j_neuron]*rate);
+        for(k_vec = 0; k_vec<n_wvecs; ++k_vec){
+            weights[k_vec] = _mm256_fmadd_ps(aux1, inputs[k_vec], weights[k_vec]);
+        }
+    }
 }
