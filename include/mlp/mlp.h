@@ -23,13 +23,12 @@ void mlp_load_input(struct mlp *mlp, mlp_float_t const input[]); // Memcpys de s
 mlp_float_t const *mlp_forward(struct mlp *mlp); // The input goes into the first hidden layer and that output is the input of the next and so on. Return the pointer to the last layer output
 void mlp_load_answer(struct mlp *mlp, mlp_float_t const answer[]); // Memcpys de single answer row into aligned address (batch size = 1 for the moment)
 void mlp_backprog(struct mlp *mlp, mlp_float_t rate); // The cached output is compared to the answer and propagates backwards the change in the right direction based on the influence of each neuron
-
+void mlp_free(struct mlp *mlp); //Frees memory
 
 struct mlp{
     size_t n_layers;
     struct mlp_layer *layers;
     mlp_float_t *answers;
-    mlp_float_t *aux;
 };
 
 struct mlp_layer{
