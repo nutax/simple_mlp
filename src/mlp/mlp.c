@@ -108,6 +108,7 @@ mlp_float_t const *mlp_forward(struct mlp *mlp)
         n_outputs = layer->n_outputs;
         wvec_size = MLP_VALID_VEC_SZ(n_inputs + 1);
         n_wvecs = wvec_size / VEC_FLOATS;
+        printf("%ld\n", n_wvecs);
 
         inputs = (__m256 *)(prev_layer->outputs);
         outputs = layer->outputs;
@@ -118,7 +119,9 @@ mlp_float_t const *mlp_forward(struct mlp *mlp)
             sum = _mm256_set1_ps(0);
             for (k_wvec = 0; k_wvec < n_wvecs; ++k_wvec)
             {
+                printf("%ld\n", k_wvec);
                 sum = _mm256_fmadd_ps(inputs[k_wvec], weights[k_wvec], sum);
+                printf("%ld\n", k_wvec);
             }
             net_energy = sum[0] + sum[1] + sum[2] + sum[3] + sum[4] + sum[5] + sum[6] + sum[7];
             outputs[j_neuron] = (mlp_float_t)(1 / (1 + exp(-net_energy))); // sigmoid activation function
