@@ -12,7 +12,7 @@ CC	= gcc
 LD	= gcc
 
 LDFLAGS	= -lm -lpthread
-CCFLAGS	= -std=c11 -O3 -march=native
+CCFLAGS	= -std=c11 -g -march=native
 
 SRCTREE	= $(shell find $(SRCDIR) -type d)
 INCS	= $(shell find $(INCDIR) -type f -name '*$(INCEXT)')

@@ -11,20 +11,20 @@ int main(int argc, char **argv);
 void readIris();
 void shuffle(int *array, int n);
 
-int const epochs = 1000000;
-float const learning_rate = 0.1;
-int const rand_seed = 0;
-int const cols = 4;
-int const out_cols = 3;
-int const rows = 150;
-int const train_rows = 105;
+#define epochs 10000
+#define learning_rate 0.1
+#define rand_seed 0
+#define cols 4
+#define out_cols 3
+#define rows 150
+#define train_rows 105
+#define n_layers 3
 
 int order[rows];
 float feat[rows * cols];
 float label[rows * out_cols];
 
-size_t const n_layers = 4;
-size_t const layers_size[] = {4, 5, 4, 3};
+size_t layers_size[n_layers] = {4, 5, 3};
 
 struct mlp mlp;
 

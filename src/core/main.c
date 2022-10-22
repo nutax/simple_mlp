@@ -4,7 +4,9 @@ int main(int argc, char **argv)
 {
     srand(rand_seed);
     readIris();
+    printf("ACA\n");
     mlp_init(&mlp, layers_size, n_layers);
+    printf("ACA\n");
 
     for (int i = 0; i < rows; ++i)
         order[i] = i;

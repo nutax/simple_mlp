@@ -27,6 +27,7 @@ void mlp_init(struct mlp *mlp, size_t const n_neurons_per_layer[], size_t n_laye
     {
         layer->outputs[j_neuron] = 0;
     }
+    layer->outputs[n_outputs] = 1;
 
     for (i_layer = 1; i_layer < n_layers; ++i_layer)
     {
@@ -41,14 +42,14 @@ void mlp_init(struct mlp *mlp, size_t const n_neurons_per_layer[], size_t n_laye
 
         layer->weights = aligned_alloc(MLP_CACHE_LINE, sizeof(mlp_float_t) * wmat_size);
         assert(layer->weights != NULL);
-        for (k_weight = 0; k_weight < wmat_size; k_weight)
+        for (k_weight = 0; k_weight < wmat_size; ++k_weight)
         {
             layer->weights[k_weight] = 0;
         }
         for (j_neuron = 0; j_neuron < n_outputs; ++j_neuron)
         {
             weights = (layer->weights) + j_neuron * wvec_size;
-            for (k_weight = 0; k_weight < (n_inputs + 1); k_weight)
+            for (k_weight = 0; k_weight < (n_inputs + 1); ++k_weight)
             {
                 layer->weights[k_weight] = ((mlp_float_t)rand()) / ((mlp_float_t)RAND_MAX);
             }
